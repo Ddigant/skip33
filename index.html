@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SKIP33 — Demo Hiburan</title>
+<style>
+  :root{--bg:#07121a;--card:#0f1724;--accent:#f59e0b;--muted:#9aa6b2;--win:#34d399}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;font-family:Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#071024,#04101a);color:#e6eef6;display:flex;align-items:center;justify-content:center}
+  .wrap{width:980px;padding:18px;border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));box-shadow:0 12px 40px rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.03);display:flex;gap:18px}
+  .left{width:640px}
+  .right{flex:1;min-width:260px}
+  h1{font-size:18px;margin:0 0 8px;text-align:left}
+  .machine{background:linear-gradient(180deg,#081620,#071218);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
+  .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,0.01),transparent);border-radius:8px}
+  .cell{height:84px;background:linear-gradient(180deg,#061220,#03121a);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:36px;user-select:none}
+  .controls{display:flex;gap:8px;align-items:center;justify-content:flex-start;margin-top:12px}
+  button{background:var(--accent);border:none;color:#071126;padding:8px 12px;border-radius:8px;font-weight:700;cursor:pointer}
+  select,input{background:#08161f;border:1px solid rgba(255,255,255,0.04);color:#e6eef6;padding:6px;border-radius:6px}
+  .info{display:flex;flex-direction:column;gap:8px;padding-left:12px}
+  .muted{color:var(--muted);font-size:13px}
+  .win{color:var(--win);font-weight:800}
+  .paytable{margin-top:10px;font-size:13px;color:var(--muted)}
+  .small{font-size:13px;color:var(--muted)}
+  .header-row{display:flex;justify-content:space-between;align-items:center}
+  .overlay{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);background:rgba(2,6,23,0.9);padding:18px;border-radius:10px;display:none;color:#fff}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="left">
+      <div class="header-row">
+        <h1>SKIP33 — Demo (Entertainment only)</h1>
+        <div class="small">Kontrol: SPIN / AUTO / Space</div>
+      </div>
+
+      <div class="machine">
+        <div id="grid" class="grid" aria-hidden="false">
+          <!-- 5x3 cells -->
+          <div class="cell" data-r="0" data-c="0">🀄</div><div class="cell" data-r="0" data-c="1">🀄</div><div class="cell" data-r="0" data-c="2">🀄</div><div class="cell" data-r="0" data-c="3">🀄</div><div class="cell" data-r="0" data-c="4">🀄</div>
+          <div class="cell" data-r="1" data-c="0">🀄</div><div class="cell" data-r="1" data-c="1">🀄</div><div class="cell" data-r="1" data-c="2">🀄</div><div class="cell" data-r="1" data-c="3">🀄</div><div class="cell" data-r="1" data-c="4">🀄</div>
+          <div class="cell" data-r="2" data-c="0">🀄</div><div class="cell" data-r="2" data-c="1">🀄</div><div class="cell" data-r="2" data-c="2">🀄</div><div class="cell" data-r="2" data-c="3">🀄</div><div class="cell" data-r="2" data-c="4">🀄</div>
+        </div>
+
+        <div class="controls">
+          <label class="small">Taruhan:</label>
+          <select id="bet">
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+            <option value="1000">1000</option>
+            <option value="5000">5000</option>
+          </select>
+          <button id="spin">SPIN</button>
+          <button id="auto">AUTO</button>
+          <div style="width:12px"></div>
+          <div class="small">Free Spins: <span id="free">0</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="machine" style="padding:14px">
+        <div class="small">Kredit: <strong id="credits">10000</strong></div>
+        <div class="small">Score: <strong id="score">0</strong></div>
+        <div class="small">Pemain: Demo</div>
+        <div class="paytable">
+          <div><strong>Paytable (match 3+ dari paling kiri, per baris):</strong></div>
+          <div class="muted">Bamboo (🎴): x5 / x15 / x40 (3/4/5)</div>
+          <div class="muted">Dragon (🀄): x10 / x30 / x80</div>
+          <div class="muted">Circle (⭕): x3 / x9 / x25</div>
+          <div class="muted">Scatter (🀆) 3+ = free spins (3,4,5 → 5/8/12 free)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay" class="overlay"></div>
+
+<script>
+/*
+  Mahjong-ish Ways — demo slot inspired by mahjong-themed slot machines.
+  FOR ENTERTAINMENT ONLY: no real money, no gambling backend.
+*/
+(() => {
+  // symbols (use emoji for demo)
+  const SYMBOL = {
+    DRAGON: '🀄', // high
+    BAMBOO: '🎴', // mid
+    CIRCLE: '⭕', // low
+    FLOWER: '🌸',
+    SCATTER: '🀆' // triggers free spins
+  };
+  // weighted wheel to simulate symbol rarity
+  const wheel = [
+    SYMBOL.CIRCLE, SYMBOL.CIRCLE, SYMBOL.CIRCLE, SYMBOL.CIRCLE, SYMBOL.CIRCLE,
+    SYMBOL.BAMBOO, SYMBOL.BAMBOO, SYMBOL.BAMBOO, SYMBOL.BAMBOO,
+    SYMBOL.DRAGON, SYMBOL.DRAGON,
+    SYMBOL.FLOWER, SYMBOL.FLOWER,
+    SYMBOL.SCATTER
+  ];
+
+  const rows = 3, cols = 5;
+  const gridEl = document.getElementById('grid');
+  const cells = Array.from(gridEl.querySelectorAll('.cell'));
+  const creditsEl = document.getElementById('credits');
+  const scoreEl = document.getElementById('score');
+  const freeEl = document.getElementById('free');
+  const betEl = document.getElementById('bet');
+  const spinBtn = document.getElementById('spin');
+  const autoBtn = document.getElementById('auto');
+  const overlay = document.getElementById('overlay');
+
+  let credits = 300000;
+  let score = 0;
+  let freeSpins = 0;
+  let spinning = false;
+  let autoMode = false;
+
+  // helpers
+  function randFromWheel(){ return wheel[Math.floor(Math.random()*wheel.length)]; }
+  function setCell(r,c, sym){ const el = cells[r*cols + c]; el.textContent = sym; }
+
+  function renderGrid(grid){
+    for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) setCell(r,c, grid[r][c]);
+  }
+
+  function createRandomGrid(){
+    const g = Array.from({length:rows},()=>Array.from({length:cols},()=>randFromWheel()));
+    return g;
+  }
+
+  function payoutForSymbol(sym, count, bet){
+    // returns win amount
+    if (count < 3) return 0;
+    // sample multipliers
+    const table = {
+      [SYMBOL.CIRCLE]: {3:3,4:9,5:25},
+      [SYMBOL.BAMBOO]: {3:5,4:15,5:40},
+      [SYMBOL.DRAGON]: {3:10,4:30,5:80},
+      [SYMBOL.FLOWER]: {3:4,4:12,5:30}
+    };
+    const mul = (table[sym] && table[sym][count]) || 0;
+    return mul * bet;
+  }
+
+  function countScatters(grid){
+    let c = 0;
+    for(let r=0;r<rows;r++) for(let col=0;col<cols;col++) if(grid[r][col]===SYMBOL.SCATTER) c++;
+    return c;
+  }
+
+  function evaluateWins(grid, bet){
+    // simplified: evaluate each row from left to right; matches must start at col 0 (leftmost) like many "ways" games
+    let totalWin = 0;
+    const winDetails = [];
+    for(let r=0;r<rows;r++){
+      // scan from leftmost symbol
+      const leftSym = grid[r][0];
+      if (!leftSym) continue;
+      let count = 1;
+      for(let c=1;c<cols;c++){
+        if (grid[r][c] === leftSym) count++; else break;
+      }
+      const w = payoutForSymbol(leftSym, count, bet);
+      if (w>0){
+        totalWin += w;
+        winDetails.push({row:r, sym:leftSym, count, win:w});
+      }
+    }
+    // scatter handling
+    const scatCount = countScatters(grid);
+    let scatterAward = 0;
+    if (scatCount >= 3){
+      // assign free spins: 3->5,4->8,5->12
+      const spinsMap = {3:5,4:8,5:12};
+      freeSpins += spinsMap[scatCount] || 0;
+      scatterAward = 0;
+    }
+    return {totalWin, winDetails, scatCount, scatterAward};
+  }
+
+  function showMessage(text, timeout=1600){
+    overlay.style.display = 'block';
+    overlay.textContent = text;
+    if (timeout>0) setTimeout(()=>overlay.style.display='none', timeout);
+    else overlay.style.display='none';
+  }
+
+  async function spinOnce(bet){
+    // animate by cycling cells quickly then stopping per column
+    const spins = [];
+    for(let c=0;c<cols;c++){
+      spins.push(new Promise(resolve=>{
+        const duration = 700 + c*180;
+        const start = Date.now();
+        const iv = setInterval(()=>{
+          // fill column with random symbols
+          for(let r=0;r<rows;r++) setCell(r,c, randFromWheel());
+        }, 80);
+        setTimeout(()=>{
+          clearInterval(iv);
+          // final column
+          for(let r=0;r<rows;r++) setCell(r,c, randFromWheel());
+          // collect final column values
+          const colVals = [];
+          for(let r=0;r<rows;r++) colVals.push(cells[r*cols + c].textContent);
+          resolve(colVals);
+        }, duration);
+      }));
+    }
+
+    // gather results
+    const columns = await Promise.all(spins);
+    // transpose to grid[r][c]
+    const grid = Array.from({length:rows},(_,r)=>Array.from({length:cols},(_,c)=>columns[c][r]));
+    renderGrid(grid);
+    return grid;
+  }
+
+  async function spin(){
+    if (spinning) return;
+    const bet = parseInt(betEl.value,10);
+    if (bet > credits && freeSpins<=0){ showMessage('Kredit tidak cukup'); return; }
+    spinning = true;
+    spinBtn.disabled = true;
+
+    // handle bet payment (free spins bypass cost)
+    if (freeSpins>0){
+      freeSpins--;
+      freeEl.textContent = freeSpins;
+    } else {
+      credits -= bet; creditsEl.textContent = credits;
+    }
+
+    const grid = await spinOnce(bet);
+    const res = evaluateWins(grid, bet);
+    if (res.totalWin>0){
+      credits += res.totalWin;
+      score += res.totalWin;
+      creditsEl.textContent = credits;
+      scoreEl.textContent = score;
+      showMessage('Menang +'+res.totalWin, 1600);
+    } else {
+      showMessage('Tidak menang', 900);
+    }
+    // scatter free spins notification
+    if (res.scatCount>=3){
+      freeEl.textContent = freeSpins;
+      showMessage('Scatter! Gratis spin: ' + freeSpins, 1800);
+    }
+
+    spinning = false;
+    spinBtn.disabled = false;
+
+    // auto mode
+    if (autoMode){
+      // stop if not enough credits and no free spins
+      if (credits < bet && freeSpins<=0){ autoMode = false; autoBtn.textContent='AUTO'; showMessage('Auto berhenti: kredit habis',1200); }
+      else setTimeout(()=>{ if(autoMode) spin(); }, 600);
+    }
+  }
+
+  // UI bindings
+  spinBtn.addEventListener('click', spin);
+  autoBtn.addEventListener('click', ()=>{
+    autoMode = !autoMode;
+    autoBtn.textContent = autoMode ? 'STOP' : 'AUTO';
+    if (autoMode && !spinning) spin();
+  });
+  document.addEventListener('keydown', e=>{ if (e.code==='Space'){ e.preventDefault(); spin(); } if (e.key==='a' || e.key==='A') autoBtn.click(); });
+
+  // init display
+  creditsEl.textContent = credits;
+  scoreEl.textContent = score;
+  freeEl.textContent = freeSpins;
+  // initial random fill
+  renderGrid(createRandomGrid());
+})();
+</script>
+</body>
+</html>
